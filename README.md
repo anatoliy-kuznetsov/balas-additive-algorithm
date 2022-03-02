@@ -15,4 +15,4 @@ In the algorithm, we must have c[i] >= 0 for all i and all constraints must be o
 
 Usage:
 
-./balas text-file.txt
+./balas outfile.txt
