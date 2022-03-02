@@ -6,7 +6,7 @@ nvar
 
 ncons
 
-nnz (number of nonzeros)
+nnz (number of nonzeros in A)
 
 c1 c2 ... c_nvar (this part also needs to have the indices of the nonzero objective coefficients, will change it)
 
