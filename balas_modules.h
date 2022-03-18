@@ -59,7 +59,7 @@ void delete_infeasible_row(int index){
     }
 }
 
-double calculate_row_infeasibility(short int *solution, int solution_length, double *constraint_matrix, int *constraint_columns, int row_start, int row_length, double row_rhs){
+double calculate_row_infeasibility(bool *solution, int solution_length, double *constraint_matrix, int *constraint_columns, int row_start, int row_length, double row_rhs){
     /*
     Given a constraint matrix in CSR format, Ax <= b, for a binary IP, this function calculates the amount by which a constraint is violated
     Parameters:
@@ -78,8 +78,9 @@ double calculate_row_infeasibility(short int *solution, int solution_length, dou
    double infeasibility = -row_rhs;
    for (int i = 0; i < row_length; i++){
        int variable_index = *(constraint_columns + row_start + i);
-       short int current_variable_value = *(solution + variable_index);
-       infeasibility += current_variable_value * (*(constraint_matrix + row_start + i));
+       if (*(solution + variable_index)){
+           infeasibility += (*(constraint_matrix + row_start + i));
+       }
    }
    return infeasibility;
 }
