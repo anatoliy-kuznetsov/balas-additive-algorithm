@@ -14,6 +14,9 @@ struct infeasible_row *current_row = NULL;
 void insert_row_front(int index, double infeasibility){
     /*
     Inserts an infeasible row at the front of the list of infeasible rows
+    Parameters:
+        index: index of infeasible row in the constraint matrix
+        infeasibility: amount by which row is infeasible
     */
     struct infeasible_row *row = (struct infeasible_row*) malloc(sizeof(struct infeasible_row));
     row->index = index;
