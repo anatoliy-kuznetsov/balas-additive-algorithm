@@ -21,6 +21,13 @@ struct free_variable{
 
 struct free_variable *head_free_variable = NULL;
 
+struct infeasibility_reducing_variable{
+    int index;
+    struct infeasibility_reducing_variable *next;
+};
+
+struct infeasibility_reducing_variable *head_infeasibility_reducing_variable = NULL;
+
 void insert_row_front(int index, double infeasibility, double *coefficients, int *variable_indices, int number_of_nonzeros){
     /*
     Inserts an infeasible row at the front of the list of infeasible rows
@@ -118,35 +125,66 @@ double calculate_objective_value(double *coefficients, bool *solution, int numbe
     return objective_value;
 }
 
-bool row_contains_variable(struct infeasible_row *row, struct free_variable *free_variable){
+bool row_contains_free_variable(struct infeasible_row *row, struct free_variable *variable){
     for (int i = 0; i < row->number_of_nonzeros; i++){
-        if (row->variable_indices[i] == free_variable->index){
+        if (row->variable_indices[i] == variable->index){
             return true;
         }
     }
     return false;
 }
 
-double calculate_infeasibility_reduction(struct infeasible_row *row, struct free_variable *variable){ // TODO
-    return 0;
+bool row_contains_infeasibility_reducing_variable(struct infeasible_row *row, struct infeasibility_reducing_variable *variable){
+    for (int i = 0; i < row->number_of_nonzeros; i++){
+        if (row->variable_indices[i] == variable->index){
+            return true;
+        }
+    }
+    return false;
+}
+
+double calculate_infeasibility_reduction(struct infeasible_row *row, struct infeasibility_reducing_variable *variable){
+    for (int i = 0; i < row->number_of_nonzeros; i++){
+        if (row->variable_indices[i] == variable->index){
+            return row->coefficients[i];
+        }
+    }
 }
 
 double calculate_minimum_infeasibility(struct infeasible_row *row){
     double minimum_infeasibility = row->infeasibility;
-    struct free_variable *current_free_variable = head_free_variable;
-    while (current_free_variable != NULL){
-        if (row_contains_variable(row, current_free_variable)){
-            double infeasibility_reduction = calculate_infeasibility_reduction(row, current_free_variable);
-            minimum_infeasibility -= infeasibility_reduction;
+    struct infeasibility_reducing_variable *current_infeasibility_reducing_variable = head_infeasibility_reducing_variable;
+    while (current_infeasibility_reducing_variable != NULL){
+        if (row_contains_infeasibility_reducing_variable(row, current_infeasibility_reducing_variable)){
+            double infeasibility_reduction = calculate_infeasibility_reduction(row, current_infeasibility_reducing_variable);
+            minimum_infeasibility += infeasibility_reduction; // infeasibility_reduction is a negative value
         }
+        current_infeasibility_reducing_variable = current_infeasibility_reducing_variable->next;
     }
     return minimum_infeasibility;
 }
 
-void initialize_infeasible_rows(){ //TODO
+void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int *variable_indices, double *right_hand_sides, int number_of_constraints){
+    /*
+    At the start of the algorithm, all variable are free and evaluated at zero
+    Since we assume the constraint matrix is of the form Ax <= b, the i-th row is initially infeasible
+    if and only if b_i < 0
+    */
+    for (int i = 0; i < number_of_constraints; i++){
+        if (*(right_hand_sides + i) < 0){
+            int row_start = *(row_starts + i);
+            int number_of_nonzeros = *(row_starts + i + 1) - row_start;
+            insert_row_front(row_start, -*(right_hand_sides + i), constraint_matrix + row_start, variable_indices + row_start, number_of_nonzeros);
+        }
+    }
     return;
 }
 
-void initialize_free_variables(){ //TODO
-    return;
+void initialize_free_variables(double *objective_coefficients, int number_of_variables){
+    /*
+    Initially, every variable is free
+    */
+    for (int i = 0; i < number_of_variables; i++){
+        insert_free_variable_front(i, *(objective_coefficients + i));
+    }
 }
