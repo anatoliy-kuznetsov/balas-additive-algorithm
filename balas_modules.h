@@ -12,7 +12,6 @@ struct infeasible_row{
 };
 
 struct infeasible_row *head_row = NULL;
-struct infeasible_row *current_row = NULL;
 
 struct free_variable{
     int index;
@@ -46,7 +45,7 @@ void delete_infeasible_row(int index){
     the requested row is not found or if the list is already empty.
     */
     struct infeasible_row *current_row = head_row;
-    struct infeasible_row *previous = NULL;
+    struct infeasible_row *previous_row = NULL;
 
     // if list is empty
     if (head_row == NULL){
@@ -60,7 +59,7 @@ void delete_infeasible_row(int index){
             return;
         }
         else{
-            previous = current_row;
+            previous_row = current_row;
             current_row = current_row->next;
         }
     }
@@ -69,7 +68,7 @@ void delete_infeasible_row(int index){
         head_row = head_row->next;
     }
     else{
-        previous->next = current_row->next;
+        previous_row->next = current_row->next;
     }
 
     free(current_row);
