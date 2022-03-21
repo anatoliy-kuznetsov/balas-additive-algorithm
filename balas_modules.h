@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+bool algorithm_done = false;
+
 struct infeasible_row{
     int row_start;
     double infeasibility;
@@ -31,6 +33,7 @@ struct infeasibility_reducing_variable *head_infeasibility_reducing_variable = N
 struct fixed_variable{
     int index;
     bool fixed_to_one;
+    double objective_coefficient;
     struct fixed_variable *next;
 };
 
@@ -203,5 +206,37 @@ void initialize_free_variables(double *objective_coefficients, int number_of_var
     */
     for (int i = 0; i < number_of_variables; i++){
         insert_free_variable_front(i, *(objective_coefficients + i));
+    }
+}
+
+void backtrack(){
+    /*
+    Backtracking means:
+    - if the last fixed variable is fixed to 1, set it to 0
+    - if the last fixed variable is fixed to 0, change it to a free variable and consider the second-to-last fixed variable
+        - if that variable is fixed to 1, set it to 0
+        - if it's fixed to 0, change it to a free variable and backtrack one further
+    - if we backtrack all the way to unfixing the first fixed variable, the algorithm is done running
+    */
+
+    // if no fixed variables remain, we are done with Balas' algorithm
+    if (head_fixed_variable == NULL){
+        algorithm_done = true;
+        return;
+    }
+
+    // otherwise, proceed with backtracking
+    struct fixed_variable *current_fixed_variable = head_fixed_variable;
+    if (current_fixed_variable->fixed_to_one){
+        // fix to zero
+        current_fixed_variable->fixed_to_one = false;
+        return;
+    }
+    else{
+        // if fixed to zero, change head fixed variable, unfix current fixed variable and add to list of free variables
+        head_fixed_variable = current_fixed_variable->next;
+        insert_free_variable_front(current_fixed_variable->index, current_fixed_variable->objective_coefficient);
+        free(current_fixed_variable);
+        backtrack();
     }
 }
