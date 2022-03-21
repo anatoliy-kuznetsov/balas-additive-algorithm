@@ -98,6 +98,13 @@ void insert_free_variable_front(int index, double objective_coefficient){
     head_free_variable = variable;
 }
 
+void insert_infeasibility_reducing_variable_front(int index){
+    struct infeasibility_reducing_variable *variable = (struct infeasibility_reducing_variable*) malloc(sizeof(struct infeasibility_reducing_variable));
+    variable->index = index;
+    variable->next = head_infeasibility_reducing_variable;
+    head_infeasibility_reducing_variable = variable;
+}
+
 double calculate_row_infeasibility(bool *solution, double *constraint_matrix, int *constraint_columns, int row_start, int row_length, double row_rhs){
     /*
     Given a constraint matrix in CSR format, Ax <= b, for a binary IP, this function calculates the amount by which a constraint is violated
@@ -124,12 +131,14 @@ double calculate_row_infeasibility(bool *solution, double *constraint_matrix, in
    return infeasibility;
 }
 
-double calculate_objective_value(double *coefficients, bool *solution, int number_of_variables){
+double calculate_objective_value(){
     double objective_value = 0;
-    for (int i = 0; i < number_of_variables; i++){
-        if (*(solution + i)){
-            objective_value += coefficients[i];
+    struct fixed_variable *current_fixed_variable = head_fixed_variable;
+    while(current_fixed_variable != NULL){
+        if (current_fixed_variable->fixed_to_one){
+            objective_value += current_fixed_variable->objective_coefficient;
         }
+        current_fixed_variable = current_fixed_variable->next;
     }
     return objective_value;
 }
