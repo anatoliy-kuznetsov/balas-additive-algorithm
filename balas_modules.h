@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 struct infeasible_row{
-    int index;
+    int row_start;
     double infeasibility;
     double *coefficients;
     int *variable_indices;
@@ -28,15 +28,21 @@ struct infeasibility_reducing_variable{
 
 struct infeasibility_reducing_variable *head_infeasibility_reducing_variable = NULL;
 
-void insert_row_front(int index, double infeasibility, double *coefficients, int *variable_indices, int number_of_nonzeros){
+struct fixed_variable{
+    int index;
+    bool fixed_to_one;
+    struct fixed_variable *next;
+};
+
+struct fixed_variable *head_fixed_variable = NULL;
+
+void insert_row_front(int row_start, double infeasibility, double *coefficients, int *variable_indices, int number_of_nonzeros){
     /*
     Inserts an infeasible row at the front of the list of infeasible rows
-    Parameters:
-        index: index of infeasible row in the constraint matrix
-        infeasibility: amount by which row is currently infeasible
+    Parameters: // TODO
     */
     struct infeasible_row *row = (struct infeasible_row*) malloc(sizeof(struct infeasible_row));
-    row->index = index;
+    row->row_start = row_start;
     row->infeasibility = infeasibility;
     row->coefficients = coefficients;
     row->variable_indices = variable_indices;
@@ -45,9 +51,9 @@ void insert_row_front(int index, double infeasibility, double *coefficients, int
     head_row = row;
 }
 
-void delete_infeasible_row(int index){
+void delete_infeasible_row(int row_start){
     /*
-    Deletes an infeasible row, specified by a row index.
+    Deletes an infeasible row, specified by a the row start.
     This method has no return value, and doesn't modify the list if
     the requested row is not found or if the list is already empty.
     */
@@ -60,7 +66,7 @@ void delete_infeasible_row(int index){
     }
 
     // go through list starting at first row to find the requested row
-    while (current_row->index != index){
+    while (current_row->row_start != row_start){
         // if we're at the last row
         if (current_row->next == NULL){
             return;
@@ -162,6 +168,17 @@ double calculate_minimum_infeasibility(struct infeasible_row *row){
         current_infeasibility_reducing_variable = current_infeasibility_reducing_variable->next;
     }
     return minimum_infeasibility;
+}
+
+void delete_all_infeasibility_reducing_variables(){
+    struct infeasibility_reducing_variable *current_infeasibility_reducing_variable = head_infeasibility_reducing_variable;
+    struct infeasibility_reducing_variable *next_infeasibility_reducing_variable = NULL;
+    while (current_infeasibility_reducing_variable != NULL){
+        next_infeasibility_reducing_variable = current_infeasibility_reducing_variable->next;
+        free(current_infeasibility_reducing_variable);
+        current_infeasibility_reducing_variable = next_infeasibility_reducing_variable;
+    }
+    head_infeasibility_reducing_variable = NULL;
 }
 
 void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int *variable_indices, double *right_hand_sides, int number_of_constraints){
