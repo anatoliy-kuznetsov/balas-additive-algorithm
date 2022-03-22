@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <float.h>
+#include "problem_data.h"
 
 bool algorithm_done = false;
 double current_objective_value = 0;
-double best_solution = DBL_MAX;
+double best_objective_value = DBL_MAX;
+bool *current_solution = incumbent_solution;
 
 struct infeasible_row{
     int row_start;
@@ -253,13 +255,17 @@ void backtrack(){
     }
 }
 
+void update_incumbent_solution(){
+    // TODO copy current solution to incumbent and update objective value
+}
+
 void execute_iteration(){
     /*
     If there are no infeasible rows left, we can prune this node 
     */
     if (head_row == NULL){
-        if (current_objective_value < best_solution){
-            // TODO store incumbent solution
+        if (current_objective_value < best_objective_value){
+            update_incumbent_solution();
         }
         return;
     }
@@ -270,7 +276,7 @@ void execute_iteration(){
     */
     struct free_variable *current_free_variable = head_free_variable;
     while (current_free_variable != NULL){
-        if (current_objective_value + current_free_variable->objective_coefficient < best_solution){
+        if (current_objective_value + current_free_variable->objective_coefficient < best_objective_value){
             struct infeasible_row *current_row = head_row;
             while (current_row != NULL){
                 if (row_contains_free_variable(current_row, current_free_variable)){
@@ -311,5 +317,11 @@ void execute_iteration(){
             return;
         }
     }
-    // 
+    
+    /*
+    There is a feasible continuation of the partial solution.
+    We decide which variable to branch on using Balas' test
+    TODO implement and update objective value
+    */
+
 }

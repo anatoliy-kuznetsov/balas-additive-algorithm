@@ -1,5 +1,4 @@
 #include "balas_modules.h"
-#include "problem_data.h"
 
 int main(){
     initialize_infeasible_rows(constraint_matrix, row_starts, variable_indices, right_hand_sides, number_of_constraints);
@@ -15,9 +14,9 @@ int main(){
         execute_iteration();
     }
 
-    if (best_solution == DBL_MAX){
+    if (best_objective_value == DBL_MAX){
         printf("Problem is infeasible.\n");
-        return 1;
+        return -1;
     }
 
     return 0;
