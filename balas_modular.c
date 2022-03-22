@@ -11,8 +11,13 @@ int main(){
     }
 
     initialize_free_variables(objective_coefficents, number_of_variables);
-    while(!algorithm_done){
-        // for each free variable, find infeasible rows containing that variable
+    while (!algorithm_done){
+        execute_iteration();
+    }
+
+    if (best_solution == DBL_MAX){
+        printf("Problem is infeasible.\n");
+        return 1;
     }
 
     return 0;

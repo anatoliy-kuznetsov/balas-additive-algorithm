@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <float.h>
 
 bool algorithm_done = false;
+double current_objective_value = 0;
+double best_solution = DBL_MAX;
 
 struct infeasible_row{
     int row_start;
@@ -248,4 +251,65 @@ void backtrack(){
         free(current_fixed_variable);
         backtrack();
     }
+}
+
+void execute_iteration(){
+    /*
+    If there are no infeasible rows left, we can prune this node 
+    */
+    if (head_row == NULL){
+        if (current_objective_value < best_solution){
+            // TODO store incumbent solution
+        }
+        return;
+    }
+
+    /*
+    For each free variable, check if setting it to 1 would reduce infeasibility and lead to a better objective than the incumbent
+    The set of infeasibility reducing variables is the set T in the book with the PASCAL implementation
+    */
+    struct free_variable *current_free_variable = head_free_variable;
+    while (current_free_variable != NULL){
+        if (current_objective_value + current_free_variable->objective_coefficient < best_solution){
+            struct infeasible_row *current_row = head_row;
+            while (current_row != NULL){
+                if (row_contains_free_variable(current_row, current_free_variable)){
+                    /*
+                    If a free variable reduces infeasibility in at least one row, that's enough to include it 
+                    in the list of infeasibility reducing variables and we don't need to consider what other
+                    rows it may appear in.
+                    */
+                    insert_infeasibility_reducing_variable_front(current_free_variable->index);
+                    break;
+                }
+                current_row = current_row->next;
+            }
+        }
+        current_free_variable = current_free_variable->next;
+    }
+
+    if (head_infeasibility_reducing_variable == NULL){
+        // If there are no infeasibility reducing variables (T is empty), backtrack
+        backtrack();
+        return;
+    }
+
+    /*
+    Proceed with infeasibility test (if we set all infeasibility reducing variables to 1, will the
+    solution still be infeasible?)
+    We check every infeasible row
+    */
+    struct infeasible_row *current_row = head_row;
+    while (current_row != NULL){
+        double minimum_infeasibility = calculate_minimum_infeasibility(current_row);
+        if (minimum_infeasibility > 0){
+            /*
+            If there exists a row that cannot be made feasible by setting all infeasibility reducing variables 
+            to 1, then there is no feasible completion of the current partial solution, so we backtrack
+            */
+            backtrack();
+            return;
+        }
+    }
+    // 
 }
