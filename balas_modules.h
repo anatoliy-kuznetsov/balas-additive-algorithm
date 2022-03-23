@@ -237,7 +237,7 @@ void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int 
         if (*(right_hand_sides + i) < 0){
             int row_start = *(row_starts + i);
             int number_of_nonzeros = *(row_starts + i + 1) - row_start;
-            insert_row_front(row_start, constraint_matrix + row_start, variable_indices + row_start, number_of_nonzeros);
+            insert_row_front(i, constraint_matrix + row_start, variable_indices + row_start, number_of_nonzeros);
         }
     }
     return;
@@ -269,13 +269,13 @@ void update_infeasible_rows(int variable_index, int direction){
                 }
                 // update lists
                 if (row_is_infeasible(row_index)){
-                    // If the row is now feasible, delete it from the list of infeasible rows
+                    // If the row was infeasible but is now feasible, delete it from the list of infeasible rows
                     if (left_hand_sides[row_index] <= right_hand_sides[row_index]){
                         delete_infeasible_row(row_index);
                     }
                 }
                 else{
-                    // If the row is now infeasible, add it to the list of infeasible rows
+                    // If the row was feasible but is now infeasible, add it to the list of infeasible rows
                     if (left_hand_sides[row_index] > right_hand_sides[row_index]){
                         insert_row_front(row_index, constraint_matrix + row_starts[row_index], variable_indices + row_starts[row_index], 
                             row_starts[row_index + 1] - row_starts[row_index]
@@ -358,14 +358,38 @@ void update_incumbent_solution(){
     }
 }
 
+void print_optimal_solution(){
+    // TODO make this more sensible
+    printf("Optimal solution:\n[");
+    for (int i = 0; i < number_of_variables - 1; i++){
+        if (incumbent_solution[i]){
+            printf("1");
+        }
+        else{
+            printf("0");
+        }
+        printf(", ");
+    }
+    if (incumbent_solution[number_of_variables - 1]){
+        printf("1");
+    }
+    else{
+        printf("0");
+    }
+    printf("]\n");
+    printf("Optimal objective value: %.5lf\n", best_objective_value);
+}
+
 void execute_iteration(){
     /*
     If there are no infeasible rows left, we can prune this node 
     */
+
     if (head_row == NULL){
         if (current_objective_value < best_objective_value){
             update_incumbent_solution();
         }
+        backtrack();
         return;
     }
 
@@ -448,30 +472,8 @@ void execute_iteration(){
     delete_free_variable(branching_variable_index);
     update_infeasible_rows(branching_variable_index, 1);
     current_objective_value += branching_variable_objective_coefficient;
-    if (current_objective_value < best_objective_value){
+    if (current_objective_value < best_objective_value && head_row == NULL){
         best_objective_value = current_objective_value;
         update_incumbent_solution();
     }
-}
-
-void print_solution(){
-    // TODO make this more sensible
-    printf("Optimal solution:\n[");
-    for (int i = 0; i < number_of_variables - 1; i++){
-        if (incumbent_solution[i]){
-            printf("1");
-        }
-        else{
-            printf("0");
-        }
-        printf(", ");
-    }
-    if (incumbent_solution[number_of_variables - 1]){
-        printf("1");
-    }
-    else{
-        printf("0");
-    }
-    printf("]\n");
-    printf("Optimal objective value: %.5lf\n", best_objective_value);
 }

@@ -28,6 +28,6 @@ int main(){
 
     end_time = clock();
     printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
-    print_solution();
+    print_optimal_solution();
     return 0;
 }
