@@ -1,6 +1,8 @@
 #include "balas_modules.h"
 
-int main(){
+int main(int argc, char *argv[]){
+    // Read problem data
+    read_problem_data(argv[1]);
     clock_t start_time = clock();
     clock_t end_time;
 
@@ -14,7 +16,7 @@ int main(){
         return 0;
     }
 
-    initialize_free_variables(objective_coefficents, number_of_variables);
+    initialize_free_variables(objective_coefficients, number_of_variables);
     while (!algorithm_done){
         execute_iteration();
     }
@@ -29,5 +31,7 @@ int main(){
     end_time = clock();
     printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
     print_optimal_solution();
+
+    // TODO free all allocated memory
     return 0;
 }

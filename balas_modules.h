@@ -3,12 +3,24 @@
 #include <stdbool.h>
 #include <float.h>
 #include <time.h>
-#include "problem_data.h"
 
 bool algorithm_done = false;
 double current_objective_value = 0;
 double best_objective_value = DBL_MAX;
-bool *current_solution = incumbent_solution;
+bool *incumbent_solution;
+bool *current_solution;
+
+int number_of_variables;
+int number_of_constraints;
+int number_of_nonzeros;
+int number_of_objective_nonzeros;
+double *constraint_matrix;
+int *row_starts;
+double *objective_coefficients;
+int *objective_indices;
+int *variable_indices;
+double *right_hand_sides;
+double *left_hand_sides;
 
 struct infeasible_row{
     int row_index;
@@ -244,7 +256,7 @@ void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int 
 }
 
 void initialize_free_variables(double *objective_coefficients, int number_of_variables){
-    /*
+    /* TODO rewrite with sparse representation
     Initially, every variable is free
     */
     for (int i = 0; i < number_of_variables; i++){
@@ -309,7 +321,7 @@ void backtrack(){
     // otherwise, proceed with backtracking
     struct fixed_variable *current_fixed_variable = head_fixed_variable;
     if (current_fixed_variable->fixed_to_one){
-        // fix to zero and modify the current objective value
+        // fix to zero, modify the current objective value, and update infeasible row list
         current_fixed_variable->fixed_to_one = false;
         update_infeasible_rows(current_fixed_variable->index, 0);
         current_objective_value -= current_fixed_variable->objective_coefficient;
@@ -382,9 +394,10 @@ void print_optimal_solution(){
 
 void execute_iteration(){
     /*
-    If there are no infeasible rows left, we can prune this node 
+    Performs one iteration of Balas' algorithm
     */
 
+    // If there are no infeasible rows left, we can prune this node 
     if (head_row == NULL){
         if (current_objective_value < best_objective_value){
             update_incumbent_solution();
@@ -476,4 +489,42 @@ void execute_iteration(){
         best_objective_value = current_objective_value;
         update_incumbent_solution();
     }
+}
+
+void read_problem_data(char *filename){
+    FILE *input_file;
+    input_file = fopen(filename, "r");
+    fscanf(input_file, "%d", &number_of_variables);
+    fscanf(input_file, "%d", &number_of_constraints);
+    fscanf(input_file, "%d", &number_of_nonzeros);
+    fscanf(input_file, "%d", &number_of_objective_nonzeros);
+    constraint_matrix = (double*) malloc(sizeof(double) * number_of_nonzeros);
+    row_starts = (int*) malloc(sizeof(int) * number_of_constraints + 1);
+    objective_coefficients = (double*) malloc(sizeof(double) * number_of_objective_nonzeros);
+    objective_indices = (int*) malloc(sizeof(int) * number_of_objective_nonzeros);
+    variable_indices = (int*) malloc(sizeof(int) * number_of_nonzeros);
+    right_hand_sides = (double*) malloc(sizeof(double) * number_of_constraints);
+    incumbent_solution = (bool*) calloc(number_of_variables, sizeof(bool));
+    current_solution = (bool*) calloc(number_of_variables, sizeof(bool));
+    left_hand_sides = (double*) calloc(number_of_constraints, sizeof(double));
+
+    int current_index; // used to convert from 1-indexing to 0-indexing
+    for (int i = 0; i < number_of_objective_nonzeros; i++){
+        fscanf(input_file, "%d %lf", &current_index, objective_coefficients + i);
+        objective_indices[i] = current_index - 1;
+    }
+    for (int i = 0; i < number_of_constraints; i++){
+        fscanf(input_file, "%lf", right_hand_sides + i);
+    }
+    int current_row = 0;
+    for (int i = 0; i < number_of_nonzeros; i++){
+        int previous_row = current_row;
+        fscanf(input_file, "%d %d %lf", &current_row, &current_index, constraint_matrix + i);
+        variable_indices[i] = current_index - 1;
+        if (current_row != previous_row){
+            row_starts[previous_row] = i;
+        }
+    }
+    row_starts[number_of_constraints] = number_of_nonzeros + 1;
+    fclose(input_file);
 }
