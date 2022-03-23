@@ -11,8 +11,7 @@ double best_objective_value = DBL_MAX;
 bool *current_solution = incumbent_solution;
 
 struct infeasible_row{
-    int row_start;
-    double infeasibility;
+    int row_index;
     double *coefficients;
     int *variable_indices;
     int number_of_nonzeros;
@@ -45,14 +44,13 @@ struct fixed_variable{
 
 struct fixed_variable *head_fixed_variable = NULL;
 
-void insert_row_front(int row_start, double infeasibility, double *coefficients, int *variable_indices, int number_of_nonzeros){
+void insert_row_front(int row_index, double *coefficients, int *variable_indices, int number_of_nonzeros){
     /*
     Inserts an infeasible row at the front of the list of infeasible rows
     Parameters: // TODO
     */
     struct infeasible_row *row = (struct infeasible_row*) malloc(sizeof(struct infeasible_row));
-    row->row_start = row_start;
-    row->infeasibility = infeasibility;
+    row->row_index = row_index;
     row->coefficients = coefficients;
     row->variable_indices = variable_indices;
     row->number_of_nonzeros = number_of_nonzeros;
@@ -60,7 +58,7 @@ void insert_row_front(int row_start, double infeasibility, double *coefficients,
     head_row = row;
 }
 
-void delete_infeasible_row(int row_start){
+void delete_infeasible_row(int row_index){
     /*
     Deletes an infeasible row, specified by the row start.
     This method has no return value, and doesn't modify the list if
@@ -75,7 +73,7 @@ void delete_infeasible_row(int row_start){
     }
 
     // go through list starting at first row to find the requested row
-    while (current_row->row_start != row_start){
+    while (current_row->row_index != row_index){
         // if we're at the last row
         if (current_row->next == NULL){
             return;
@@ -221,7 +219,7 @@ double calculate_infeasibility_reduction(struct infeasible_row *row, struct infe
 }
 
 double calculate_minimum_infeasibility(struct infeasible_row *row){
-    double minimum_infeasibility = row->infeasibility;
+    double minimum_infeasibility = left_hand_sides[row->row_index] - right_hand_sides[row->row_index];
     struct infeasibility_reducing_variable *current_infeasibility_reducing_variable = head_infeasibility_reducing_variable;
     while (current_infeasibility_reducing_variable != NULL){
         if (row_contains_infeasibility_reducing_variable(row, current_infeasibility_reducing_variable)){
@@ -254,7 +252,7 @@ void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int 
         if (*(right_hand_sides + i) < 0){
             int row_start = *(row_starts + i);
             int number_of_nonzeros = *(row_starts + i + 1) - row_start;
-            insert_row_front(row_start, -*(right_hand_sides + i), constraint_matrix + row_start, variable_indices + row_start, number_of_nonzeros);
+            insert_row_front(row_start, constraint_matrix + row_start, variable_indices + row_start, number_of_nonzeros);
         }
     }
     return;
@@ -266,6 +264,31 @@ void initialize_free_variables(double *objective_coefficients, int number_of_var
     */
     for (int i = 0; i < number_of_variables; i++){
         insert_free_variable_front(i, *(objective_coefficients + i));
+    }
+}
+
+void update_infeasible_rows(int variable_index, int direction){
+    /*
+    When a variable is newly fixed to 0 or 1, we recalculate the left-hand side for all rows accordingly
+    and update the list of infeasible rows, adding or removing rows as needed. The input 'direction' is 0
+    or 1, indicating which value the variable has been fixed to.
+    */
+    for (int constraint_index = 0; constraint_index < number_of_constraints; constraint_index++){
+        for (int i = row_starts[constraint_index]; i < row_starts[constraint_index + 1]; i++){
+            if (variable_indices[i] == variable_index){
+                if (direction){
+                    left_hand_sides[constraint_index] += constraint_matrix[i];
+                }
+                else{
+                    left_hand_sides[constraint_index] -= constraint_matrix[i];
+                }
+                // update lists
+
+
+                // move to the next constraint
+                break;
+            }
+        }
     }
 }
 
@@ -290,6 +313,7 @@ void backtrack(){
     if (current_fixed_variable->fixed_to_one){
         // fix to zero and modify the current objective value
         current_fixed_variable->fixed_to_one = false;
+        update_infeasible_rows(current_fixed_variable->index, 0);
         current_objective_value -= current_fixed_variable->objective_coefficient;
         return;
     }
@@ -424,6 +448,7 @@ void execute_iteration(){
     // Branch on the variable with the largest infeasibility reduction
     insert_fixed_variable_front(branching_variable_index, branching_variable_objective_coefficient);
     delete_free_variable(branching_variable_index);
+    update_infeasible_rows(branching_variable_index, 1);
     current_objective_value += branching_variable_objective_coefficient;
     if (current_objective_value < best_objective_value){
         best_objective_value = current_objective_value;
