@@ -214,7 +214,7 @@ bool row_contains_infeasibility_reducing_variable(struct infeasible_row *row, st
 
 double calculate_infeasibility_reduction(struct infeasible_row *row, struct infeasibility_reducing_variable *variable){
     for (int i = 0; i < row->number_of_nonzeros; i++){
-        if (row->variable_indices[i] == variable->index){
+        if ((row->variable_indices[i] == variable->index) && (row->coefficients[i] < 0)){
             return row->coefficients[i];
         }
     }
@@ -288,8 +288,9 @@ void backtrack(){
     // otherwise, proceed with backtracking
     struct fixed_variable *current_fixed_variable = head_fixed_variable;
     if (current_fixed_variable->fixed_to_one){
-        // fix to zero
+        // fix to zero and modify the current objective value
         current_fixed_variable->fixed_to_one = false;
+        current_objective_value -= current_fixed_variable->objective_coefficient;
         return;
     }
     else{
@@ -320,7 +321,19 @@ double calculate_total_infeasibility_reduction(struct free_variable *variable){
 }
 
 void update_incumbent_solution(){
-    // TODO copy current solution to incumbent and update objective value
+    /*
+    Stores the current solution in the incumbent slot.
+    */
+    for (int i = 0; i < number_of_variables; i++){
+        incumbent_solution[i] = false;
+    }
+    struct fixed_variable *current_fixed_variable = head_fixed_variable;
+    while (current_fixed_variable != NULL){
+        if (current_fixed_variable->fixed_to_one){
+            incumbent_solution[current_fixed_variable->index] = true;
+        }
+        current_fixed_variable = current_fixed_variable->next;
+    }
 }
 
 void execute_iteration(){
@@ -411,8 +424,31 @@ void execute_iteration(){
     // Branch on the variable with the largest infeasibility reduction
     insert_fixed_variable_front(branching_variable_index, branching_variable_objective_coefficient);
     delete_free_variable(branching_variable_index);
+    current_objective_value += branching_variable_objective_coefficient;
+    if (current_objective_value < best_objective_value){
+        best_objective_value = current_objective_value;
+        update_incumbent_solution();
+    }
+}
 
-    // TODO update objective value
-    
-
+void print_solution(){
+    // TODO make this more sensible
+    printf("Optimal solution:\n[");
+    for (int i = 0; i < number_of_variables - 1; i++){
+        if (incumbent_solution[i]){
+            printf("1");
+        }
+        else{
+            printf("0");
+        }
+        printf(", ");
+    }
+    if (incumbent_solution[number_of_variables - 1]){
+        printf("1");
+    }
+    else{
+        printf("0");
+    }
+    printf("]\n");
+    printf("Optimal objective value: %.5lf\n", best_objective_value);
 }
