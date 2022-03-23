@@ -154,32 +154,6 @@ void insert_fixed_variable_front(int index, double objective_coefficient){
     head_fixed_variable = variable;
 }
 
-double calculate_row_infeasibility(bool *solution, double *constraint_matrix, int *constraint_columns, int row_start, int row_length, double row_rhs){
-    /*
-    Given a constraint matrix in CSR format, Ax <= b, for a binary IP, this function calculates the amount by which a constraint is violated
-    Parameters:
-        solution: current solution vector [0,1,0,1,1,...]
-        solution_length: number of variables (N)
-        constraint_matrix: array of CSR matrix coefficients
-        constraint_columns: array of CSR matrix variable indices
-        row_start: index of the start of the constraint in question
-        row_length: number of nonzeroes in the constraint in question
-        row_rhs: right-hand side of the row (b_i)
-    Returns:
-        infeasibility: amount by which the constraint is violated, i.e. sum(i, a_i * x_i) - b_i
-            if infeasibility is positive, it means the solution violates the constraint
-            if it's zero or negative, solution satisfies the constraint
-    */
-   double infeasibility = -row_rhs;
-   for (int i = 0; i < row_length; i++){
-       int variable_index = *(constraint_columns + row_start + i);
-       if (*(solution + variable_index)){
-           infeasibility += (*(constraint_matrix + row_start + i));
-       }
-   }
-   return infeasibility;
-}
-
 double calculate_objective_value(){
     double objective_value = 0;
     struct fixed_variable *current_fixed_variable = head_fixed_variable;
@@ -206,6 +180,17 @@ bool row_contains_infeasibility_reducing_variable(struct infeasible_row *row, st
         if (row->variable_indices[i] == variable->index){
             return true;
         }
+    }
+    return false;
+}
+
+bool row_is_infeasible(int row_index){
+    struct infeasible_row *current_row = head_row;
+    while (current_row != NULL){
+        if (current_row->row_index == row_index){
+            return true;
+        }
+        current_row = current_row->next;
     }
     return false;
 }
@@ -273,17 +258,30 @@ void update_infeasible_rows(int variable_index, int direction){
     and update the list of infeasible rows, adding or removing rows as needed. The input 'direction' is 0
     or 1, indicating which value the variable has been fixed to.
     */
-    for (int constraint_index = 0; constraint_index < number_of_constraints; constraint_index++){
-        for (int i = row_starts[constraint_index]; i < row_starts[constraint_index + 1]; i++){
+    for (int row_index = 0; row_index < number_of_constraints; row_index++){
+        for (int i = row_starts[row_index]; i < row_starts[row_index + 1]; i++){
             if (variable_indices[i] == variable_index){
                 if (direction){
-                    left_hand_sides[constraint_index] += constraint_matrix[i];
+                    left_hand_sides[row_index] += constraint_matrix[i];
                 }
                 else{
-                    left_hand_sides[constraint_index] -= constraint_matrix[i];
+                    left_hand_sides[row_index] -= constraint_matrix[i];
                 }
                 // update lists
-
+                if (row_is_infeasible(row_index)){
+                    // If the row is now feasible, delete it from the list of infeasible rows
+                    if (left_hand_sides[row_index] <= right_hand_sides[row_index]){
+                        delete_infeasible_row(row_index);
+                    }
+                }
+                else{
+                    // If the row is now infeasible, add it to the list of infeasible rows
+                    if (left_hand_sides[row_index] > right_hand_sides[row_index]){
+                        insert_row_front(row_index, constraint_matrix + row_starts[row_index], variable_indices + row_starts[row_index], 
+                            row_starts[row_index + 1] - row_starts[row_index]
+                        );
+                    }
+                }
 
                 // move to the next constraint
                 break;
