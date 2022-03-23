@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <float.h>
+#include <time.h>
 #include "problem_data.h"
 
 bool algorithm_done = false;
@@ -61,7 +62,7 @@ void insert_row_front(int row_start, double infeasibility, double *coefficients,
 
 void delete_infeasible_row(int row_start){
     /*
-    Deletes an infeasible row, specified by a the row start.
+    Deletes an infeasible row, specified by the row start.
     This method has no return value, and doesn't modify the list if
     the requested row is not found or if the list is already empty.
     */
@@ -95,6 +96,42 @@ void delete_infeasible_row(int row_start){
     free(current_row);
 }
 
+void delete_free_variable(int index){
+    /*
+    Deletes a free variable, specified by its index.
+    This method has no return value, and doesn't modify the list if
+    the requested variable is not found or if the list is already empty.
+    */
+    struct free_variable *current_variable = head_free_variable;
+    struct free_variable *previous_variable = NULL;
+
+    // if list is empty
+    if (head_free_variable == NULL){
+        return;
+    }
+
+    // go through list starting at first variable to find the requested variable
+    while (current_variable->index != index){
+        // if we're at the last variable
+        if (current_variable->next == NULL){
+            return;
+        }
+        else{
+            previous_variable = current_variable;
+            current_variable = current_variable->next;
+        }
+    }
+
+    if (current_variable == head_free_variable){
+        head_free_variable = head_free_variable->next;
+    }
+    else{
+        previous_variable->next = current_variable->next;
+    }
+
+    free(current_variable);
+}
+
 void insert_free_variable_front(int index, double objective_coefficient){
     struct free_variable *variable = (struct free_variable*) malloc(sizeof(struct free_variable));
     variable->index = index;
@@ -108,6 +145,15 @@ void insert_infeasibility_reducing_variable_front(int index){
     variable->index = index;
     variable->next = head_infeasibility_reducing_variable;
     head_infeasibility_reducing_variable = variable;
+}
+
+void insert_fixed_variable_front(int index, double objective_coefficient){
+    struct fixed_variable *variable = (struct fixed_variable*) malloc(sizeof(struct fixed_variable));
+    variable->index = index;
+    variable->fixed_to_one = true;
+    variable->objective_coefficient = objective_coefficient;
+    variable->next = head_fixed_variable;
+    head_fixed_variable = variable;
 }
 
 double calculate_row_infeasibility(bool *solution, double *constraint_matrix, int *constraint_columns, int row_start, int row_length, double row_rhs){
@@ -255,6 +301,24 @@ void backtrack(){
     }
 }
 
+double calculate_total_infeasibility_reduction(struct free_variable *variable){
+    /*
+    Calculates the amount by which setting a free variable to 1 will reduce the total infeasibility
+    of infeasible rows
+    */
+    struct infeasible_row *current_row = head_row;
+    double total_infeasibility_reduction = 0;
+    while (current_row != NULL){
+        for (int i = 0; i < current_row->number_of_nonzeros; i++){
+            if ((current_row->variable_indices[i] == variable->index) && (current_row->coefficients[i] < 0)){
+                total_infeasibility_reduction += current_row->coefficients[i];
+            }
+        }
+        current_row = current_row->next;
+    }
+    return total_infeasibility_reduction;
+}
+
 void update_incumbent_solution(){
     // TODO copy current solution to incumbent and update objective value
 }
@@ -316,12 +380,39 @@ void execute_iteration(){
             backtrack();
             return;
         }
+        current_row = current_row->next;
     }
+
+    // We no longer need the list of infeasibility reducing variables
+    delete_all_infeasibility_reducing_variables();
     
     /*
-    There is a feasible continuation of the partial solution.
-    We decide which variable to branch on using Balas' test
-    TODO implement and update objective value
+    There is a feasible continuation of the partial solution. We decide which variable to branch on using Balas' test.
+    By convention, infeasibility reductions are negative if setting a variable to 1 reduces the infeasibility. 
     */
+    double largest_infeasibility_reduction = 0;
+    int branching_variable_index;
+    double branching_variable_objective_coefficient;
+    current_free_variable = head_free_variable;
+    while (current_free_variable != NULL){
+        double infeasibility_reduction = calculate_total_infeasibility_reduction(current_free_variable);
+        if (infeasibility_reduction < largest_infeasibility_reduction){
+            largest_infeasibility_reduction = infeasibility_reduction;
+            branching_variable_index = current_free_variable->index;
+            branching_variable_objective_coefficient = current_free_variable->objective_coefficient;
+        }
+        current_free_variable = current_free_variable->next;
+    }
+    // If the largest infeasibility reduction is 0, then we cannot reduce infeasibility by setting a variable to 1
+    if (largest_infeasibility_reduction == 0){
+        backtrack();
+        return;
+    }
+    // Branch on the variable with the largest infeasibility reduction
+    insert_fixed_variable_front(branching_variable_index, branching_variable_objective_coefficient);
+    delete_free_variable(branching_variable_index);
+
+    // TODO update objective value
+    
 
 }
