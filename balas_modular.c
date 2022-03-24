@@ -32,6 +32,6 @@ int main(int argc, char *argv[]){
     printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
     print_optimal_solution();
 
-    // TODO free all allocated memory
+    free_all_memory();
     return 0;
 }

@@ -239,6 +239,17 @@ void delete_all_infeasibility_reducing_variables(){
     head_infeasibility_reducing_variable = NULL;
 }
 
+void delete_all_free_variables(){
+    struct free_variable *current_free_variable = head_free_variable;
+    struct free_variable *next_free_variable = NULL;
+    while (current_free_variable != NULL){
+        next_free_variable = current_free_variable->next;
+        free(current_free_variable);
+        current_free_variable = next_free_variable;
+    }
+    head_free_variable = NULL;
+}
+
 void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int *variable_indices, double *right_hand_sides, int number_of_constraints){
     /*
     At the start of the algorithm, all variable are free and evaluated at zero
@@ -527,4 +538,25 @@ void read_problem_data(char *filename){
     }
     row_starts[number_of_constraints] = number_of_nonzeros + 1;
     fclose(input_file);
+}
+
+void free_all_memory(){
+    /*
+    Frees all memory at the end of the algorithm.
+    By the time this routine is called, the lists for fixed variables and infeasible rows are empty
+    since that's a stopping condition for the algorithm.
+    There may still be infeasibility reducing variables, so we delete that list along with the list
+    of free variables. Then, we deallocate all the memory for the problem data.
+    */
+    delete_all_infeasibility_reducing_variables();
+    delete_all_free_variables();
+    free(constraint_matrix);
+    free(row_starts);
+    free(objective_coefficients);
+    free(objective_indices);
+    free(variable_indices);
+    free(right_hand_sides);
+    free(incumbent_solution);
+    free(current_solution);
+    free(left_hand_sides);
 }
