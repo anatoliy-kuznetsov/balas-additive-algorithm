@@ -266,12 +266,33 @@ void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int 
     return;
 }
 
+int get_objective_index(int variable_index){
+    /*
+    Returns the index in the sparse objective function of a variable with original index variable_index
+    If the variable does not appear in the objective function, returns -1.
+    */
+    for (int i = 0; i < number_of_objective_nonzeros; i++){
+        if (variable_index == objective_indices[i]){
+            return i;
+        }
+    }
+    return -1;
+}
+
 void initialize_free_variables(double *objective_coefficients, int number_of_variables){
-    /* TODO rewrite with sparse representation
+    /*
     Initially, every variable is free
     */
     for (int i = 0; i < number_of_variables; i++){
-        insert_free_variable_front(i, *(objective_coefficients + i));
+        int objective_index = get_objective_index(i);
+        int objective_coefficient;
+        if (objective_index == -1){
+            objective_coefficient = 0;
+        }
+        else{
+            objective_coefficient = *(objective_coefficients + objective_index);
+        }
+        insert_free_variable_front(i, objective_coefficient);
     }
 }
 
