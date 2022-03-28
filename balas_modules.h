@@ -35,6 +35,7 @@ struct infeasible_row *head_row = NULL;
 struct free_variable{
     int index;
     double objective_coefficient;
+    double infeasibility_reduction;
     struct free_variable *next;
 };
 
@@ -211,6 +212,7 @@ void insert_free_variable_front(int index, double objective_coefficient){
     struct free_variable *variable = (struct free_variable*) malloc(sizeof(struct free_variable));
     variable->index = index;
     variable->objective_coefficient = objective_coefficient;
+    variable->infeasibility_reduction = 0;
     variable->next = head_free_variable;
     head_free_variable = variable;
 }
@@ -500,22 +502,29 @@ void execute_iteration(){
     For each free variable, check if setting it to 1 would reduce infeasibility and lead to a better objective than the incumbent
     The set of infeasibility reducing variables is the set 'T' in the book with the PASCAL implementation
     */
+    double largest_infeasibility_reduction = 0;
+    int branching_variable_index;
+    double branching_variable_objective_coefficient;
     struct free_variable *current_free_variable = head_free_variable;
     while (current_free_variable != NULL){
+        bool variable_reduces_infeasibility = false;
         if (current_objective_value + current_free_variable->objective_coefficient < best_objective_value){
-            struct infeasible_row *current_row = head_row;
-            while (current_row != NULL){
-                if (variable_reduces_row_infeasibility(current_row, current_free_variable)){
-                    /*
-                    If a free variable reduces infeasibility in at least one row, that's enough to include it 
-                    in the list of infeasibility reducing variables and we don't need to consider what other
-                    rows it may appear in.
-                    */
+            struct row_with_negative_coefficient *current_row_with_negative_coefficient = rows_with_negative_coefficients[current_free_variable->index];
+            while (current_row_with_negative_coefficient != NULL){
+                if (!variable_reduces_infeasibility){
                     insert_infeasibility_reducing_variable_front(current_free_variable->index);
-                    break;
+                    variable_reduces_infeasibility = true;
                 }
-                current_row = current_row->next;
+                if (left_hand_sides[current_row_with_negative_coefficient->row_index] > right_hand_sides[current_row_with_negative_coefficient->row_index]){
+                    current_free_variable->infeasibility_reduction += current_row_with_negative_coefficient->coefficient;
+                }
+                current_row_with_negative_coefficient = current_row_with_negative_coefficient->next;
             }
+        }
+        if (current_free_variable->infeasibility_reduction < largest_infeasibility_reduction){
+            largest_infeasibility_reduction = current_free_variable->infeasibility_reduction;
+            branching_variable_index = current_free_variable->index;
+            branching_variable_objective_coefficient = current_free_variable->objective_coefficient;
         }
         current_free_variable = current_free_variable->next;
     }
@@ -595,20 +604,8 @@ void execute_iteration(){
     /*
     There is a feasible continuation of the partial solution. We decide which variable to branch on using Balas' test.
     By convention, infeasibility reductions are negative if setting a variable to 1 reduces the infeasibility. 
+    We already computed all of the infeasibility reductions earlier so we don't need to do it here
     */
-    double largest_infeasibility_reduction = 0;
-    int branching_variable_index;
-    double branching_variable_objective_coefficient;
-    current_free_variable = head_free_variable;
-    while (current_free_variable != NULL){
-        double infeasibility_reduction = calculate_total_infeasibility_reduction(current_free_variable);
-        if (infeasibility_reduction < largest_infeasibility_reduction){
-            largest_infeasibility_reduction = infeasibility_reduction;
-            branching_variable_index = current_free_variable->index;
-            branching_variable_objective_coefficient = current_free_variable->objective_coefficient;
-        }
-        current_free_variable = current_free_variable->next;
-    }
     // If the largest infeasibility reduction is 0, then we cannot reduce infeasibility by setting a variable to 1
     if (largest_infeasibility_reduction == 0){
         backtrack();
@@ -623,6 +620,8 @@ void execute_iteration(){
         best_objective_value = current_objective_value;
         update_incumbent_solution();
     }
+
+    // TODO reset all free variable infeasibility reduction values to 0
 }
 
 void read_problem_data(char *filename){
