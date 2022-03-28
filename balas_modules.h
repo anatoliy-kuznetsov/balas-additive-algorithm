@@ -404,23 +404,15 @@ void update_incumbent_solution(){
 
 void print_optimal_solution(){
     // TODO make this more sensible
-    printf("Optimal solution:\n[");
-    for (int i = 0; i < number_of_variables - 1; i++){
+    printf("Optimal solution:\n");
+    for (int i = 0; i < number_of_variables; i++){
         if (incumbent_solution[i]){
-            printf("1");
+            printf("x%d:\t1\n", i + 1);
         }
         else{
-            printf("0");
+            printf("x%d:\t0\n", i + 1);
         }
-        printf(", ");
     }
-    if (incumbent_solution[number_of_variables - 1]){
-        printf("1");
-    }
-    else{
-        printf("0");
-    }
-    printf("]\n");
     printf("Optimal objective value: %.5lf\n", best_objective_value);
 }
 
