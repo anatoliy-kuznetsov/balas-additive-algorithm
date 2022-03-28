@@ -56,6 +56,71 @@ struct fixed_variable{
 
 struct fixed_variable *head_fixed_variable = NULL;
 
+struct row_with_negative_coefficient{
+    int row_index;
+    double coefficient;
+    struct row_with_negative_coefficient *next;
+};
+
+struct row_with_nonzero_coefficient{
+    int row_index;
+    double coefficient;
+    struct row_with_nonzero_coefficient *next;
+};
+
+struct row_with_negative_coefficient **rows_with_negative_coefficients;
+struct row_with_nonzero_coefficient **rows_with_nonzero_coefficients;
+
+void insert_row_with_nonzero_coefficient_end(int variable_index, int row_index, double coefficient){
+    /*
+    Given a variable and the index of a row that contains that variable, inserts a node at the end of the 
+    corresponding list of rows that contain that variable
+    */
+    // If list is empty (head pointer is null) then we put the node at the start of the list
+    if (rows_with_nonzero_coefficients[variable_index] == NULL){
+        rows_with_nonzero_coefficients[variable_index] = (struct row_with_nonzero_coefficient*) malloc(sizeof(struct row_with_nonzero_coefficient));
+        rows_with_nonzero_coefficients[variable_index]->row_index = row_index;
+        rows_with_nonzero_coefficients[variable_index]->coefficient = coefficient;
+        rows_with_nonzero_coefficients[variable_index]->next = NULL;
+        return;
+    }
+    // Otherwise, traverse the list until we get to the end
+    struct row_with_nonzero_coefficient *current_row_with_nonzero_coefficient = rows_with_nonzero_coefficients[variable_index];
+    while (current_row_with_nonzero_coefficient->next != NULL){
+        current_row_with_nonzero_coefficient = current_row_with_nonzero_coefficient->next;
+    }
+    struct row_with_nonzero_coefficient *new_row_with_nonzero_coefficient = (struct row_with_nonzero_coefficient*) malloc(sizeof(struct row_with_nonzero_coefficient));
+    new_row_with_nonzero_coefficient->row_index = row_index;
+    new_row_with_nonzero_coefficient->coefficient = coefficient;
+    new_row_with_nonzero_coefficient->next = NULL;
+    current_row_with_nonzero_coefficient->next = new_row_with_nonzero_coefficient;
+}
+
+void insert_row_with_negative_coefficient_end(int variable_index, int row_index, double coefficient){
+    /*
+    Given a variable and the index of a row that contains that variable with a negative coefficient,
+    inserts a node at the end of the corresponding list of rows that contain that variable
+    */
+    // If list is empty (head pointer is null) then we put the node at the start of the list
+    if (rows_with_negative_coefficients[variable_index] == NULL){
+        rows_with_negative_coefficients[variable_index] = (struct row_with_negative_coefficient*) malloc(sizeof(struct row_with_negative_coefficient));
+        rows_with_negative_coefficients[variable_index]->row_index = row_index;
+        rows_with_negative_coefficients[variable_index]->coefficient = coefficient;
+        rows_with_negative_coefficients[variable_index]->next = NULL;
+        return;
+    }
+    // Otherwise, traverse the list until we get to the end
+    struct row_with_negative_coefficient *current_row_with_negative_coefficient = rows_with_negative_coefficients[variable_index];
+    while (current_row_with_negative_coefficient->next != NULL){
+        current_row_with_negative_coefficient = current_row_with_negative_coefficient->next;
+    }
+    struct row_with_negative_coefficient *new_row_with_negative_coefficient = (struct row_with_negative_coefficient*) malloc(sizeof(struct row_with_negative_coefficient));
+    new_row_with_negative_coefficient->row_index = row_index;
+    new_row_with_negative_coefficient->coefficient = coefficient;
+    new_row_with_negative_coefficient->next = NULL;
+    current_row_with_negative_coefficient->next = new_row_with_negative_coefficient;
+}
+
 void insert_row_front(int row_index, double *coefficients, int *variable_indices, int number_of_nonzeros){
     /*
     Inserts an infeasible row at the front of the list of infeasible rows
@@ -213,6 +278,7 @@ double calculate_infeasibility_reduction(struct infeasible_row *row, struct infe
             return row->coefficients[i];
         }
     }
+    return 0;
 }
 
 double calculate_minimum_infeasibility(struct infeasible_row *row){
@@ -432,7 +498,7 @@ void execute_iteration(){
 
     /*
     For each free variable, check if setting it to 1 would reduce infeasibility and lead to a better objective than the incumbent
-    The set of infeasibility reducing variables is the set T in the book with the PASCAL implementation
+    The set of infeasibility reducing variables is the set 'T' in the book with the PASCAL implementation
     */
     struct free_variable *current_free_variable = head_free_variable;
     while (current_free_variable != NULL){
@@ -575,6 +641,8 @@ void read_problem_data(char *filename){
     incumbent_solution = (bool*) calloc(number_of_variables, sizeof(bool));
     current_solution = (bool*) calloc(number_of_variables, sizeof(bool));
     left_hand_sides = (double*) calloc(number_of_constraints, sizeof(double));
+    rows_with_negative_coefficients = malloc(sizeof(struct row_with_negative_coefficients**) * number_of_variables);
+    rows_with_nonzero_coefficients = malloc(sizeof(struct row_with_nonzero_coefficients**) * number_of_variables);
 
     int current_index; // used to convert from 1-indexing to 0-indexing
     for (int i = 0; i < number_of_objective_nonzeros; i++){
@@ -594,6 +662,23 @@ void read_problem_data(char *filename){
         }
     }
     row_starts[number_of_constraints] = number_of_nonzeros + 1;
+
+    for (int variable_index = 0; variable_index < number_of_variables; variable_index++){
+        for (int row_index = 0; row_index < number_of_constraints; row_index++){
+            int row_start = row_starts[row_index];
+            int next_row_start = row_starts[row_index + 1];
+            for (int j = row_start; j < next_row_start; j++){
+                if (variable_indices[j] == variable_index){
+                    double coefficient = constraint_matrix[j];
+                    insert_row_with_nonzero_coefficient_end(variable_index, row_index, coefficient);
+                    if (coefficient < 0){
+                        insert_row_with_negative_coefficient_end(variable_index, row_index, coefficient);
+                    }
+                }
+            }
+        }
+    }
+
     fclose(input_file);
 }
 
@@ -616,4 +701,6 @@ void free_all_memory(){
     free(incumbent_solution);
     free(current_solution);
     free(left_hand_sides);
+    free(rows_with_negative_coefficients);
+    free(rows_with_nonzero_coefficients); // TODO rewrite as delete functions
 }
