@@ -473,6 +473,7 @@ void execute_iteration(){
     solution still be infeasible?)
     We check every infeasible row
     */
+    double minimum_infeasibility_among_rows = -DBL_MAX;
     struct infeasible_row *current_row = head_row;
     while (current_row != NULL){
         double minimum_infeasibility = calculate_minimum_infeasibility(current_row);
@@ -484,7 +485,50 @@ void execute_iteration(){
             backtrack();
             return;
         }
+        if (minimum_infeasibility > minimum_infeasibility_among_rows){
+            minimum_infeasibility_among_rows = minimum_infeasibility;
+        }
         current_row = current_row->next;
+    }
+
+    /*
+    If there is a row that can only be made feasible by setting all remaining variables to 1, then there is only one
+    feasible continuation and we know its objective value. A sufficient condition for this is for there to be a row with a 
+    minimum infeasibility of 0 (recall that a positive minimum infeasibility means a row cannot be made feasible, and
+    a negative minimum infeasibility means that it can be made strictly feasible).
+    */
+    if (minimum_infeasibility_among_rows == 0){
+        double only_possible_objective_value = current_objective_value;
+        current_free_variable = head_free_variable;
+        while (current_free_variable != NULL){
+            only_possible_objective_value += current_free_variable->objective_coefficient;
+            current_free_variable = current_free_variable->next;
+        }
+
+        if (only_possible_objective_value < best_objective_value){
+            best_objective_value = only_possible_objective_value;
+            /*
+            Store the solution by traversing the lists of free and fixed variables
+            Similar to the method update_incumbent_solution() but with a small modification
+            */
+            for (int i = 0; i < number_of_variables; i++){
+                incumbent_solution[i] = false;
+            }
+            struct fixed_variable *current_fixed_variable = head_fixed_variable;
+            while (current_fixed_variable != NULL){
+                if (current_fixed_variable->fixed_to_one){
+                    incumbent_solution[current_fixed_variable->index] = true;
+                }
+                current_fixed_variable = current_fixed_variable->next;
+            }
+            current_free_variable = head_free_variable;
+            while (current_free_variable != NULL){
+                incumbent_solution[current_free_variable->index] = true;
+                current_free_variable = current_free_variable->next;
+            }
+            backtrack();
+            return;
+        }
     }
 
     // We no longer need the list of infeasibility reducing variables
