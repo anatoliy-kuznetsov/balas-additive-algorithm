@@ -318,6 +318,27 @@ void delete_all_free_variables(){
     head_free_variable = NULL;
 }
 
+void delete_all_row_lists(){
+    for (int i = 0; i < number_of_variables; i++){
+        struct row_with_nonzero_coefficient *current_row_with_nonzero_coefficient = rows_with_nonzero_coefficients[i];
+        struct row_with_negative_coefficient *current_row_with_negative_coefficient = rows_with_negative_coefficients[i];
+        struct row_with_nonzero_coefficient *next_row_with_nonzero_coefficient = NULL;
+        struct row_with_negative_coefficient *next_row_with_negative_coefficient = NULL;
+        while (current_row_with_nonzero_coefficient != NULL){
+            next_row_with_nonzero_coefficient = current_row_with_nonzero_coefficient->next;
+            free(current_row_with_nonzero_coefficient);
+            current_row_with_nonzero_coefficient = next_row_with_nonzero_coefficient;
+        }
+        while (current_row_with_negative_coefficient != NULL){
+            next_row_with_negative_coefficient = current_row_with_negative_coefficient->next;
+            free(current_row_with_negative_coefficient);
+            current_row_with_negative_coefficient = next_row_with_negative_coefficient;
+        }
+        rows_with_nonzero_coefficients[i] = NULL;
+        rows_with_negative_coefficients[i] = NULL;
+    }
+}
+
 void initialize_infeasible_rows(double *constraint_matrix, int *row_starts, int *variable_indices, double *right_hand_sides, int number_of_constraints){
     /*
     At the start of the algorithm, all variable are free and evaluated at zero
@@ -436,22 +457,12 @@ void backtrack(){
     }
 }
 
-double calculate_total_infeasibility_reduction(struct free_variable *variable){
-    /*
-    Calculates the amount by which setting a free variable to 1 will reduce the total infeasibility
-    of infeasible rows
-    */
-    struct infeasible_row *current_row = head_row;
-    double total_infeasibility_reduction = 0;
-    while (current_row != NULL){
-        for (int i = 0; i < current_row->number_of_nonzeros; i++){
-            if ((current_row->variable_indices[i] == variable->index) && (current_row->coefficients[i] < 0)){
-                total_infeasibility_reduction += current_row->coefficients[i];
-            }
-        }
-        current_row = current_row->next;
+void reset_infeasibility_reductions(){
+    struct free_variable *current_free_variable = head_free_variable;
+    while (current_free_variable != NULL){
+        current_free_variable->infeasibility_reduction = 0;
+        current_free_variable = current_free_variable->next;
     }
-    return total_infeasibility_reduction;
 }
 
 void update_incumbent_solution(){
@@ -621,7 +632,7 @@ void execute_iteration(){
         update_incumbent_solution();
     }
 
-    // TODO reset all free variable infeasibility reduction values to 0
+    reset_infeasibility_reductions();
 }
 
 void read_problem_data(char *filename){
@@ -700,6 +711,5 @@ void free_all_memory(){
     free(incumbent_solution);
     free(current_solution);
     free(left_hand_sides);
-    free(rows_with_negative_coefficients);
-    free(rows_with_nonzero_coefficients); // TODO rewrite as delete functions
+    delete_all_row_lists();
 }
