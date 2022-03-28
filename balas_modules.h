@@ -233,27 +233,6 @@ void insert_fixed_variable_front(int index, double objective_coefficient){
     head_fixed_variable = variable;
 }
 
-double calculate_objective_value(){
-    double objective_value = 0;
-    struct fixed_variable *current_fixed_variable = head_fixed_variable;
-    while(current_fixed_variable != NULL){
-        if (current_fixed_variable->fixed_to_one){
-            objective_value += current_fixed_variable->objective_coefficient;
-        }
-        current_fixed_variable = current_fixed_variable->next;
-    }
-    return objective_value;
-}
-
-bool variable_reduces_row_infeasibility(struct infeasible_row *row, struct free_variable *variable){
-    for (int i = 0; i < row->number_of_nonzeros; i++){
-        if (row->variable_indices[i] == variable->index && row->coefficients[i] < 0){
-            return true;
-        }
-    }
-    return false;
-}
-
 bool row_contains_infeasibility_reducing_variable(struct infeasible_row *row, struct infeasibility_reducing_variable *variable){
     for (int i = 0; i < row->number_of_nonzeros; i++){
         if (row->variable_indices[i] == variable->index){
@@ -263,7 +242,7 @@ bool row_contains_infeasibility_reducing_variable(struct infeasible_row *row, st
     return false;
 }
 
-bool row_is_infeasible(int row_index){
+bool row_in_infeasible_list(int row_index){
     struct infeasible_row *current_row = head_row;
     while (current_row != NULL){
         if (current_row->row_index == row_index){
@@ -401,7 +380,7 @@ void update_infeasible_rows(int variable_index, int direction){
                     left_hand_sides[row_index] -= constraint_matrix[i];
                 }
                 // update lists
-                if (row_is_infeasible(row_index)){
+                if (row_in_infeasible_list(row_index)){
                     // If the row was infeasible but is now feasible, delete it from the list of infeasible rows
                     if (left_hand_sides[row_index] <= right_hand_sides[row_index]){
                         delete_infeasible_row(row_index);
@@ -554,7 +533,7 @@ void execute_iteration(){
     double minimum_infeasibility_among_rows = -DBL_MAX;
     struct infeasible_row *current_row = head_row;
     while (current_row != NULL){
-        double minimum_infeasibility = calculate_minimum_infeasibility(current_row);
+        double minimum_infeasibility = calculate_minimum_infeasibility(current_row); // TODO can we do this in the above loop by adding a "minimum_infeasibility" to infeasible rows?
         if (minimum_infeasibility > 0){
             /*
             If there exists a row that cannot be made feasible by setting all infeasibility reducing variables 
