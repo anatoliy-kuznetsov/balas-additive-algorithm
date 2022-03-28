@@ -178,9 +178,9 @@ double calculate_objective_value(){
     return objective_value;
 }
 
-bool row_contains_free_variable(struct infeasible_row *row, struct free_variable *variable){
+bool variable_reduces_row_infeasibility(struct infeasible_row *row, struct free_variable *variable){
     for (int i = 0; i < row->number_of_nonzeros; i++){
-        if (row->variable_indices[i] == variable->index){
+        if (row->variable_indices[i] == variable->index && row->coefficients[i] < 0){
             return true;
         }
     }
@@ -447,7 +447,7 @@ void execute_iteration(){
         if (current_objective_value + current_free_variable->objective_coefficient < best_objective_value){
             struct infeasible_row *current_row = head_row;
             while (current_row != NULL){
-                if (row_contains_free_variable(current_row, current_free_variable)){
+                if (variable_reduces_row_infeasibility(current_row, current_free_variable)){
                     /*
                     If a free variable reduces infeasibility in at least one row, that's enough to include it 
                     in the list of infeasibility reducing variables and we don't need to consider what other
