@@ -27,6 +27,7 @@ struct infeasible_row{
     double *coefficients;
     int *variable_indices;
     int number_of_nonzeros;
+    double minimum_infeasibility;
     struct infeasible_row *next;
 };
 
@@ -136,6 +137,7 @@ void insert_row_front(int row_index, double *coefficients, int *variable_indices
     row->coefficients = coefficients;
     row->variable_indices = variable_indices;
     row->number_of_nonzeros = number_of_nonzeros;
+    row->minimum_infeasibility = left_hand_sides[row_index] - right_hand_sides[row_index];
     row->next = head_row;
     head_row = row;
 }
@@ -378,11 +380,12 @@ void update_infeasible_rows(int variable_index, int direction){
     while (current_row_with_nonzero_coefficient != NULL){
         int row_index = current_row_with_nonzero_coefficient->row_index;
         double previous_left_hand_side = left_hand_sides[row_index];
+        double coefficient = current_row_with_nonzero_coefficient->coefficient;
         if (direction){
-            left_hand_sides[row_index] += current_row_with_nonzero_coefficient->coefficient;
+            left_hand_sides[row_index] += coefficient;
         }
         else{
-            left_hand_sides[row_index] += current_row_with_nonzero_coefficient->coefficient;
+            left_hand_sides[row_index] -= coefficient;
         }
         if (previous_left_hand_side > right_hand_sides[row_index] &&
             left_hand_sides[row_index] <= right_hand_sides[row_index]){
@@ -434,7 +437,39 @@ void backtrack(){
     }
 }
 
+void decrement_minimum_infeasibility(int row_index, double coefficient){
+    /*
+    Updates the value of minimum infeasibility for a row specified by its index.
+    This method is called with the coefficient of an infeasibility reducing variable in that row
+    */
+    struct infeasible_row *current_row = head_row;
+    while (current_row != NULL){
+        if (current_row->row_index == row_index){
+            current_row->minimum_infeasibility += coefficient;
+            return;
+        }
+        current_row = current_row->next;
+    }
+}
+
+void reset_minimum_infeasibilities(){
+    /*
+    At each iteration, we compute the minimum infeasibility of each infeasible row
+    Between iterations, we set them all to [lhs] - [rhs]
+    */
+    struct infeasible_row *current_row = head_row;
+    while (current_row != NULL){
+        int row_index = current_row->row_index;
+        current_row->minimum_infeasibility = left_hand_sides[row_index] - right_hand_sides[row_index];
+        current_row = current_row->next;
+    }
+}
+
 void reset_infeasibility_reductions(){
+    /*
+    At each iteration, we compute the infeasibility reduction of each variable
+    Between iterations, we set them all to 0
+    */
     struct free_variable *current_free_variable = head_free_variable;
     while (current_free_variable != NULL){
         current_free_variable->infeasibility_reduction = 0;
@@ -503,12 +538,23 @@ void execute_iteration(){
         if (current_objective_value + current_free_variable->objective_coefficient < best_objective_value){
             struct row_with_negative_coefficient *current_row_with_negative_coefficient = rows_with_negative_coefficients[current_free_variable->index];
             while (current_row_with_negative_coefficient != NULL){
+                int row_index = current_row_with_negative_coefficient->row_index;
+                double coefficient = current_row_with_negative_coefficient->coefficient;
+                /*
+                If we haven't yet added the variable to the set of infeasibility reducing variables, we 
+                do that and then set the corresponding flag to 1
+                */
                 if (!variable_reduces_infeasibility){
                     insert_infeasibility_reducing_variable_front(current_free_variable->index);
                     variable_reduces_infeasibility = true;
                 }
-                if (left_hand_sides[current_row_with_negative_coefficient->row_index] > right_hand_sides[current_row_with_negative_coefficient->row_index]){
-                    current_free_variable->infeasibility_reduction += current_row_with_negative_coefficient->coefficient;
+                /*
+                Calculate the total infeasibility reduction of the variable and add to the minimum infeasibility
+                of each row it appears in with a negative coefficient
+                */
+                if (left_hand_sides[row_index] > right_hand_sides[row_index]){
+                    current_free_variable->infeasibility_reduction += coefficient;
+                    decrement_minimum_infeasibility(row_index, coefficient);
                 }
                 current_row_with_negative_coefficient = current_row_with_negative_coefficient->next;
             }
@@ -535,7 +581,7 @@ void execute_iteration(){
     double minimum_infeasibility_among_rows = -DBL_MAX;
     struct infeasible_row *current_row = head_row;
     while (current_row != NULL){
-        double minimum_infeasibility = calculate_minimum_infeasibility(current_row); // TODO can we do this in the above loop by adding a "minimum_infeasibility" to infeasible rows?
+        double minimum_infeasibility = current_row->minimum_infeasibility;
         if (minimum_infeasibility > 0){
             /*
             If there exists a row that cannot be made feasible by setting all infeasibility reducing variables 
@@ -551,9 +597,9 @@ void execute_iteration(){
     }
 
     /*
-    If there is a row that can only be made feasible by setting all remaining variables to 1, then there is only one
-    feasible continuation and we know its objective value. A sufficient condition for this is for there to be a row with a 
-    minimum infeasibility of 0 (recall that a positive minimum infeasibility means a row cannot be made feasible, and
+    If there is a feasible continuation and there is a row that can only be made feasible by setting all remaining variables to 1, 
+    then there is only one feasible continuation and we know its objective value. A sufficient condition for this is for the minimum
+    infeasibility of any one row to be 0 (recall that a positive minimum infeasibility means a row cannot be made feasible, and
     a negative minimum infeasibility means that it can be made strictly feasible).
     */
     if (minimum_infeasibility_among_rows == 0){
@@ -614,6 +660,7 @@ void execute_iteration(){
     }
 
     reset_infeasibility_reductions();
+    reset_minimum_infeasibilities();
 }
 
 void read_problem_data(char *filename){
