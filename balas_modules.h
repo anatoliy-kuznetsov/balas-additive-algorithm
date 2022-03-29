@@ -460,9 +460,13 @@ void update_incumbent_solution(){
     }
 }
 
-void print_optimal_solution(){
-    // TODO make this more sensible
-    printf("Optimal solution:\n");
+void print_best_found_solution(){
+    if (algorithm_done){
+        printf("Optimal solution:\n");
+    }
+    else{
+        printf("Maximum time exceeded. Best solution found:\n");
+    }
     for (int i = 0; i < number_of_variables; i++){
         if (incumbent_solution[i]){
             printf("x%d:\t1\n", i + 1);
@@ -471,10 +475,10 @@ void print_optimal_solution(){
             printf("x%d:\t0\n", i + 1);
         }
     }
-    printf("Optimal objective value: %.5lf\n", best_objective_value);
+    printf("Objective value: %.5lf\n", best_objective_value);
 }
 
-void execute_iteration(){
+void execute_iteration(){ // TODO timing and exit conditions
     /*
     Performs one iteration of Balas' algorithm
     */
@@ -616,11 +620,24 @@ void execute_iteration(){
 
 void read_problem_data(char *filename){
     FILE *input_file;
+    bool input_dimensions_valid = true;
     input_file = fopen(filename, "r");
-    fscanf(input_file, "%d", &number_of_variables);
-    fscanf(input_file, "%d", &number_of_constraints);
-    fscanf(input_file, "%d", &number_of_nonzeros);
-    fscanf(input_file, "%d", &number_of_objective_nonzeros);
+    if (fscanf(input_file, "%d", &number_of_variables) != 1){
+        input_dimensions_valid = false;
+        printf("Error reading number of variables.\n");
+    }
+    if (fscanf(input_file, "%d", &number_of_constraints) != 1){
+        input_dimensions_valid = false;
+        printf("Error reading number of constraints.\n");
+    }
+    if (fscanf(input_file, "%d", &number_of_nonzeros) != 1){
+        input_dimensions_valid = false;
+        printf("Error reading number of nonzeros in constarints.\n");
+    }
+    if (fscanf(input_file, "%d", &number_of_objective_nonzeros) != 1){
+        input_dimensions_valid = false;
+        printf("Error reading number of nonzeros in objective.\n");
+    }
     constraint_matrix = (double*) malloc(sizeof(double) * number_of_nonzeros);
     row_starts = (int*) malloc(sizeof(int) * number_of_constraints + 1);
     objective_coefficients = (double*) malloc(sizeof(double) * number_of_objective_nonzeros);
@@ -631,20 +648,29 @@ void read_problem_data(char *filename){
     current_solution = (bool*) calloc(number_of_variables, sizeof(bool));
     left_hand_sides = (double*) calloc(number_of_constraints, sizeof(double));
     rows_with_negative_coefficients = malloc(sizeof(struct row_with_negative_coefficients**) * number_of_variables);
-    rows_with_nonzero_coefficients = malloc(sizeof(struct row_with_nonzero_coefficients**) * number_of_variables);
+    rows_with_nonzero_coefficients = malloc(sizeof(struct row_with_nonzero_coefficients**) * number_of_variables); // TODO use these
 
     int current_index; // used to convert from 1-indexing to 0-indexing
     for (int i = 0; i < number_of_objective_nonzeros; i++){
-        fscanf(input_file, "%d %lf", &current_index, objective_coefficients + i);
+        if (fscanf(input_file, "%d %lf", &current_index, objective_coefficients + i) != 2){
+            input_dimensions_valid = false;
+            printf("Error reading objective coefficient %d.\n", i + 1);
+        }
         objective_indices[i] = current_index - 1;
     }
     for (int i = 0; i < number_of_constraints; i++){
-        fscanf(input_file, "%lf", right_hand_sides + i);
+        if (fscanf(input_file, "%lf", right_hand_sides + i) != 1){
+            input_dimensions_valid = false;
+            printf("Error reading right-hand side %d.\n", i + 1);
+        }
     }
     int current_row = 0;
     for (int i = 0; i < number_of_nonzeros; i++){
         int previous_row = current_row;
-        fscanf(input_file, "%d %d %lf", &current_row, &current_index, constraint_matrix + i);
+        if (fscanf(input_file, "%d %d %lf", &current_row, &current_index, constraint_matrix + i) != 3){
+            input_dimensions_valid = false;
+            printf("Error reading nonzero %d in constraint matrix.\n", i + 1);
+        }
         variable_indices[i] = current_index - 1;
         if (current_row != previous_row){
             row_starts[previous_row] = i;
@@ -669,6 +695,10 @@ void read_problem_data(char *filename){
     }
 
     fclose(input_file);
+    if (!input_dimensions_valid){
+        printf("Exiting.\n");
+        exit(-1);
+    }
 }
 
 void free_all_memory(){
