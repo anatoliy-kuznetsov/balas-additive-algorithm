@@ -452,6 +452,43 @@ void decrement_minimum_infeasibility(int row_index, double coefficient){
     }
 }
 
+bool is_free(int variable_index){
+    /*
+    Checks whether a variable, specified by its index, is currently free
+    */
+    struct free_variable *current_free_variable = head_free_variable;
+    while (current_free_variable != NULL){
+        if (current_free_variable->index == variable_index){
+            return true;
+        }
+        current_free_variable = current_free_variable->next;
+    }
+    return false;
+}
+
+bool feasible_to_set_all_free_variables_to_one(){
+    /*
+    Checks whether setting all free variables to a value of 1 leads to a feasible solution.
+    This method is called when there exists an infeasible row that can only be made feasible
+    by setting all free variables to 1, implying there is only one possible feasible continuation of
+    the partial solution. In this case, we need to check whether the rest of the rows will 
+    remain feasible after such an operation.
+    Checking this is rather slow, but most nodes in the tree probably don't meet this criterion
+    */
+    for (int row_index = 0; row_index < number_of_constraints; row_index++){
+        double new_left_hand_side = left_hand_sides[row_index];
+        for (int j = row_starts[row_index]; j < row_starts[row_index + 1]; j++){
+            if (is_free(variable_indices[j])){
+                new_left_hand_side += constraint_matrix[j];
+            }
+        }
+        if (new_left_hand_side > right_hand_sides[row_index]){
+            return false;
+        }
+    }
+    return true;
+}
+
 void reset_minimum_infeasibilities(){
     /*
     At each iteration, we compute the minimum infeasibility of each infeasible row
@@ -598,41 +635,43 @@ void execute_iteration(){
 
     /*
     If there is a feasible continuation and there is a row that can only be made feasible by setting all remaining variables to 1, 
-    then there is only one feasible continuation and we know its objective value. A sufficient condition for this is for the minimum
-    infeasibility of any one row to be 0 (recall that a positive minimum infeasibility means a row cannot be made feasible, and
-    a negative minimum infeasibility means that it can be made strictly feasible).
+    then there is only one possible feasible continuation and we know its objective value. A sufficient condition for this is for the 
+    minimum infeasibility of any one row to be 0 (recall that a positive minimum infeasibility means a row cannot be made feasible, and
+    a negative minimum infeasibility means that it can be made strictly feasible) and for the continuation to be feasible.
     */
     if (minimum_infeasibility_among_rows == 0){
-        double only_possible_objective_value = current_objective_value;
-        current_free_variable = head_free_variable;
-        while (current_free_variable != NULL){
-            only_possible_objective_value += current_free_variable->objective_coefficient;
-            current_free_variable = current_free_variable->next;
-        }
-
-        if (only_possible_objective_value < best_objective_value){
-            best_objective_value = only_possible_objective_value;
-            /*
-            Store the solution by traversing the lists of free and fixed variables
-            Similar to the method update_incumbent_solution() but with a small modification
-            */
-            for (int i = 0; i < number_of_variables; i++){
-                incumbent_solution[i] = false;
-            }
-            struct fixed_variable *current_fixed_variable = head_fixed_variable;
-            while (current_fixed_variable != NULL){
-                if (current_fixed_variable->fixed_to_one){
-                    incumbent_solution[current_fixed_variable->index] = true;
-                }
-                current_fixed_variable = current_fixed_variable->next;
-            }
+        if (feasible_to_set_all_free_variables_to_one()){
+            double only_possible_objective_value = current_objective_value;
             current_free_variable = head_free_variable;
             while (current_free_variable != NULL){
-                incumbent_solution[current_free_variable->index] = true;
+                only_possible_objective_value += current_free_variable->objective_coefficient;
                 current_free_variable = current_free_variable->next;
             }
-            backtrack();
-            return;
+
+            if (only_possible_objective_value < best_objective_value){
+                best_objective_value = only_possible_objective_value;
+                /*
+                Store the solution by traversing the lists of free and fixed variables
+                Similar to the method update_incumbent_solution() but with a small modification
+                */
+                for (int i = 0; i < number_of_variables; i++){
+                    incumbent_solution[i] = false;
+                }
+                struct fixed_variable *current_fixed_variable = head_fixed_variable;
+                while (current_fixed_variable != NULL){
+                    if (current_fixed_variable->fixed_to_one){
+                        incumbent_solution[current_fixed_variable->index] = true;
+                    }
+                    current_fixed_variable = current_fixed_variable->next;
+                }
+                current_free_variable = head_free_variable;
+                while (current_free_variable != NULL){
+                    incumbent_solution[current_free_variable->index] = true;
+                    current_free_variable = current_free_variable->next;
+                }
+                backtrack();
+                return;
+            }
         }
     }
 
