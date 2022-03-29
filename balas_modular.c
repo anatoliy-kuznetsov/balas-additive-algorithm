@@ -4,12 +4,12 @@ int main(int argc, char *argv[]){
     /*
     Command-line arguments:
         - argv[1] is the name of the input file
-        - argv[2] is the time limit in seconds (float)
+        - argv[2] is the time limit in seconds (double)
     Example:
     ./balas_modular balas-example1.balasin 0.5
     */
     read_problem_data(argv[1]);
-    float max_time_seconds = atof(argv[2]);
+    double max_time_seconds = atof(argv[2]);
     clock_t end_time;
     clock_t start_time = clock();
     clock_t stopping_time = start_time + max_time_seconds * CLOCKS_PER_SEC;
