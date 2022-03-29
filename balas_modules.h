@@ -125,7 +125,11 @@ void insert_row_with_negative_coefficient_end(int variable_index, int row_index,
 void insert_row_front(int row_index, double *coefficients, int *variable_indices, int number_of_nonzeros){
     /*
     Inserts an infeasible row at the front of the list of infeasible rows
-    Parameters: // TODO
+    Parameters:
+        row_index: which row this is in the constraint matrix
+        coefficients: CSR representation of coefficients in this row
+        variable_indices: array of nonzero column indices
+        number_of_nonzeros: number of nonzero column indices
     */
     struct infeasible_row *row = (struct infeasible_row*) malloc(sizeof(struct infeasible_row));
     row->row_index = row_index;
@@ -370,35 +374,29 @@ void update_infeasible_rows(int variable_index, int direction){
     and update the list of infeasible rows, adding or removing rows as needed. The input 'direction' is 0
     or 1, indicating which value the variable has been fixed to.
     */
-    for (int row_index = 0; row_index < number_of_constraints; row_index++){
-        for (int i = row_starts[row_index]; i < row_starts[row_index + 1]; i++){
-            if (variable_indices[i] == variable_index){
-                if (direction){
-                    left_hand_sides[row_index] += constraint_matrix[i];
-                }
-                else{
-                    left_hand_sides[row_index] -= constraint_matrix[i];
-                }
-                // update lists
-                if (row_in_infeasible_list(row_index)){
-                    // If the row was infeasible but is now feasible, delete it from the list of infeasible rows
-                    if (left_hand_sides[row_index] <= right_hand_sides[row_index]){
-                        delete_infeasible_row(row_index);
-                    }
-                }
-                else{
-                    // If the row was feasible but is now infeasible, add it to the list of infeasible rows
-                    if (left_hand_sides[row_index] > right_hand_sides[row_index]){
-                        insert_row_front(row_index, constraint_matrix + row_starts[row_index], variable_indices + row_starts[row_index], 
-                            row_starts[row_index + 1] - row_starts[row_index]
-                        );
-                    }
-                }
-
-                // move to the next constraint
-                break;
-            }
+    struct row_with_nonzero_coefficient *current_row_with_nonzero_coefficient = rows_with_nonzero_coefficients[variable_index];
+    while (current_row_with_nonzero_coefficient != NULL){
+        int row_index = current_row_with_nonzero_coefficient->row_index;
+        double previous_left_hand_side = left_hand_sides[row_index];
+        if (direction){
+            left_hand_sides[row_index] += current_row_with_nonzero_coefficient->coefficient;
         }
+        else{
+            left_hand_sides[row_index] += current_row_with_nonzero_coefficient->coefficient;
+        }
+        if (previous_left_hand_side > right_hand_sides[row_index] &&
+            left_hand_sides[row_index] <= right_hand_sides[row_index]){
+                // The row was made feasible
+                delete_infeasible_row(row_index);
+            }
+        if (previous_left_hand_side <= right_hand_sides[row_index] &&
+            left_hand_sides[row_index] > right_hand_sides[row_index]){
+                // The row was made infeasible
+                insert_row_front(row_index, constraint_matrix + row_starts[row_index], variable_indices + row_starts[row_index], 
+                    row_starts[row_index + 1] - row_starts[row_index]
+                );
+            }
+        current_row_with_nonzero_coefficient = current_row_with_nonzero_coefficient->next;
     }
 }
 
@@ -478,7 +476,7 @@ void print_best_found_solution(){
     printf("Objective value: %.5lf\n", best_objective_value);
 }
 
-void execute_iteration(){ // TODO timing and exit conditions
+void execute_iteration(){
     /*
     Performs one iteration of Balas' algorithm
     */
@@ -648,7 +646,7 @@ void read_problem_data(char *filename){
     current_solution = (bool*) calloc(number_of_variables, sizeof(bool));
     left_hand_sides = (double*) calloc(number_of_constraints, sizeof(double));
     rows_with_negative_coefficients = malloc(sizeof(struct row_with_negative_coefficients**) * number_of_variables);
-    rows_with_nonzero_coefficients = malloc(sizeof(struct row_with_nonzero_coefficients**) * number_of_variables); // TODO use these
+    rows_with_nonzero_coefficients = malloc(sizeof(struct row_with_nonzero_coefficients**) * number_of_variables);
 
     int current_index; // used to convert from 1-indexing to 0-indexing
     for (int i = 0; i < number_of_objective_nonzeros; i++){
