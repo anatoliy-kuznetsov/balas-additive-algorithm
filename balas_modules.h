@@ -799,10 +799,6 @@ void read_problem_data(char *filename){
 void free_all_memory(){
     /*
     Frees all memory at the end of the algorithm.
-    By the time this routine is called, the lists for fixed variables and infeasible rows are empty
-    since that's a stopping condition for the algorithm.
-    There may still be infeasibility reducing variables, so we delete that list along with the list
-    of free variables. Then, we deallocate all the memory for the problem data.
     */
     delete_all_infeasibility_reducing_variables();
     delete_all_free_variables();
