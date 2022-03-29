@@ -19,6 +19,7 @@ int main(int argc, char *argv[]){
     // if there are no infeasible rows initially, then the solution is just x1 = x2 = ... = xN = 0
     if (head_row == NULL){
         printf("Optimal solution is x1 = x2 = ... = xN = 0.\n");
+        free_all_memory();
         return 0;
     }
 
@@ -36,6 +37,7 @@ int main(int argc, char *argv[]){
             printf("Problem is infeasible.\n");
         }
         printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
+        free_all_memory();
         return -1;
     }
 
