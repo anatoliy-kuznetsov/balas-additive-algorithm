@@ -303,6 +303,17 @@ void delete_all_free_variables(){
     head_free_variable = NULL;
 }
 
+void delete_all_infeasible_rows(){
+    struct infeasible_row *current_row = head_row;
+    struct infeasible_row *next_row = NULL;
+    while (current_row != NULL){
+        next_row = current_row->next;
+        free(current_row);
+        current_row = next_row;
+    }
+    head_row = NULL;
+}
+
 void delete_all_row_lists(){
     for (int i = 0; i < number_of_variables; i++){
         struct row_with_nonzero_coefficient *current_row_with_nonzero_coefficient = rows_with_nonzero_coefficients[i];
@@ -795,6 +806,7 @@ void free_all_memory(){
     */
     delete_all_infeasibility_reducing_variables();
     delete_all_free_variables();
+    delete_all_infeasible_rows();
     free(constraint_matrix);
     free(row_starts);
     free(objective_coefficients);
@@ -805,4 +817,6 @@ void free_all_memory(){
     free(current_solution);
     free(left_hand_sides);
     delete_all_row_lists();
+    free(rows_with_nonzero_coefficients);
+    free(rows_with_negative_coefficients);
 }
