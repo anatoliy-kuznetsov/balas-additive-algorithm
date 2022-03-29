@@ -4,7 +4,7 @@
 #include <float.h>
 #include <time.h>
 
-bool algorithm_done = false;
+bool optimal_solution_found = false;
 double current_objective_value = 0;
 double best_objective_value = DBL_MAX;
 bool *incumbent_solution;
@@ -414,7 +414,7 @@ void backtrack(){
 
     // if no fixed variables remain, we are done with Balas' algorithm
     if (head_fixed_variable == NULL){
-        algorithm_done = true;
+        optimal_solution_found = true;
         return;
     }
 
@@ -461,7 +461,7 @@ void update_incumbent_solution(){
 }
 
 void print_best_found_solution(){
-    if (algorithm_done){
+    if (optimal_solution_found){
         printf("Optimal solution:\n");
     }
     else{

@@ -1,7 +1,13 @@
 #include "balas_modules.h"
 
 int main(int argc, char *argv[]){
-    // Read problem data
+    /*
+    Command-line arguments:
+        - argv[1] is the name of the input file
+        - argv[2] is the time limit in seconds (float)
+    Example:
+    ./balas_modular balas-example1.balasin 0.5
+    */
     read_problem_data(argv[1]);
     float max_time_seconds = atof(argv[2]);
     clock_t end_time;
@@ -17,13 +23,18 @@ int main(int argc, char *argv[]){
     }
 
     initialize_free_variables(objective_coefficients, number_of_variables);
-    while (!algorithm_done && clock() < stopping_time){
+    while (!optimal_solution_found && clock() < stopping_time){
         execute_iteration();
     }
 
     if (best_objective_value == DBL_MAX){
         end_time = clock();
-        printf("Problem is infeasible.\n");
+        if (end_time > stopping_time){
+            printf("Maximum time exceeded. No feasible solution found.\n");
+        }
+        else{
+            printf("Problem is infeasible.\n");
+        }
         printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
         return -1;
     }
