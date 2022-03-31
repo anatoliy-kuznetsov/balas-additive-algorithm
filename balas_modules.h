@@ -634,6 +634,7 @@ void execute_iteration(){
     if (head_row == NULL){
         if (current_objective_value < best_objective_value){
             update_incumbent_solution();
+            best_objective_value = current_objective_value;
         }
         backtrack();
         return;
