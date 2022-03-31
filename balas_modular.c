@@ -30,7 +30,7 @@ int main(int argc, char *argv[]){
 
     if (best_objective_value == DBL_MAX){
         end_time = clock();
-        if (end_time > stopping_time){
+        if (end_time >= stopping_time){
             printf("Maximum time exceeded. No feasible solution found.\n");
         }
         else{
