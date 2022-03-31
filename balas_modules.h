@@ -9,6 +9,7 @@ double current_objective_value = 0;
 double best_objective_value = DBL_MAX;
 bool *incumbent_solution;
 bool *current_solution;
+unsigned long long int iteration_counter = 0;
 
 int number_of_variables;
 int number_of_constraints;

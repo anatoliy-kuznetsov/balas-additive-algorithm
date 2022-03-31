@@ -26,6 +26,7 @@ int main(int argc, char *argv[]){
     initialize_free_variables(objective_coefficients, number_of_variables);
     while (!optimal_solution_found && clock() < stopping_time){
         execute_iteration();
+        iteration_counter++;
     }
 
     if (best_objective_value == DBL_MAX){
@@ -37,12 +38,14 @@ int main(int argc, char *argv[]){
             printf("Problem is infeasible.\n");
         }
         printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
+        printf("Iterations: %lld, time per iteration: %.9lf s.\n", iteration_counter, (double)(end_time - start_time)/(CLOCKS_PER_SEC * iteration_counter));
         free_all_memory();
         return -1;
     }
 
     end_time = clock();
     printf("Total execution time: %.6lf s.\n", (double)(end_time - start_time)/CLOCKS_PER_SEC);
+    printf("Iterations: %lld, time per iteration: %.9lf s.\n", iteration_counter, (double)(end_time - start_time)/(CLOCKS_PER_SEC * iteration_counter));
     print_best_found_solution();
 
     free_all_memory();
