@@ -558,20 +558,20 @@ void get_infeasibility_reducing_variables(double *largest_infeasibility_reductio
             struct row_with_negative_coefficient *current_row_with_negative_coefficient = rows_with_negative_coefficients[current_free_variable->index];
             while (current_row_with_negative_coefficient != NULL){
                 int row_index = current_row_with_negative_coefficient->row_index;
-                double coefficient = current_row_with_negative_coefficient->coefficient;
-                /*
-                If we haven't yet added the variable to the set of infeasibility reducing variables, we 
-                do that and then set the corresponding flag to 1
-                */
-                if (!variable_reduces_infeasibility){
-                    insert_infeasibility_reducing_variable_front(current_free_variable->index);
-                    variable_reduces_infeasibility = true;
-                }
                 /*
                 Calculate the total infeasibility reduction of the variable and add to the minimum infeasibility
                 of each row it appears in with a negative coefficient
                 */
                 if (left_hand_sides[row_index] > right_hand_sides[row_index]){
+                    double coefficient = current_row_with_negative_coefficient->coefficient;
+                    /*
+                    If we haven't yet added the variable to the set of infeasibility reducing variables, we 
+                    do that and then set the corresponding flag to 1
+                    */
+                    if (!variable_reduces_infeasibility){
+                        insert_infeasibility_reducing_variable_front(current_free_variable->index);
+                        variable_reduces_infeasibility = true;
+                    }
                     current_free_variable->infeasibility_reduction += coefficient;
                     decrement_minimum_infeasibility(row_index, coefficient);
                 }
